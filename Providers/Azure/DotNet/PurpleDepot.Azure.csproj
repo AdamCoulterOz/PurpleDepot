@@ -21,7 +21,7 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Cosmos" Version="6.0.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="6.0.2" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0" />
-    <PackageReference Include="System.Management.Automation" Version="7.2.1" />
+    <PackageReference Include="System.Management.Automation" Version="7.2.3" />
   </ItemGroup>
   <ItemGroup>
     <None Update="host.json">
