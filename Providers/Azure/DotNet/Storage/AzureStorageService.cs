@@ -22,8 +22,7 @@ public class AzureStorageService<T> : IStorageProvider<T>
 		NameValidator.ValidateContainerName(_options.Container);
 		NameValidator.ValidateBlobName(fileKey);
 
-		var credOptions = new DefaultAzureCredentialOptions { ExcludeSharedTokenCacheCredential = true };
-		var credential = new DefaultAzureCredential(credOptions);
+		var credential = new DefaultAzureCredential();
 		var containerClient = new BlobContainerClient(_options.BlobClientUrl, credential);
 		var blobClient = containerClient.GetBlobClient(fileKey);
 		return blobClient;

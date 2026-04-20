@@ -25,7 +25,8 @@ public static class Program
 
 	private static void ConfigureServices(HostBuilderContext context, IServiceCollection services)
 	{
-		var config = context.Configuration.GetSection(OptionsRoot).Get<AzureOptions>();
+		var config = context.Configuration.GetSection(OptionsRoot).Get<AzureOptions>()
+			?? throw new InvalidOperationException($"Missing required configuration section '{OptionsRoot}'.");
 
 		if (config.Development)
 		{
