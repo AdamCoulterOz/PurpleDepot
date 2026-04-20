@@ -23,12 +23,10 @@ The Azure implementation composes these layers through dependency injection and 
 
 ## Architecture risks / improvement opportunities
 
-1. **Provider publication workflow remains thin**
-   - Provider installation endpoints are now implemented, but the publication side still lacks a first-class platform/package publishing workflow.
-2. **Error handling scope**
+1. **Error handling scope**
    - Response wrapper maps `ControllerResultException` but not unexpected exceptions; runtime failures may leak as generic 500s.
-3. **Mock download routing**
-   - `MockStorageService.DownloadLink` now exists, but it still points at a non-routable mock host rather than a dev-hosted download endpoint.
+2. **Operational signing dependency**
+   - Provider checksum signatures now depend on configured OpenPGP private key material; a missing key is a hard startup failure.
 
 ## Terraform registry protocol contract evaluation
 
@@ -39,6 +37,7 @@ The Azure implementation composes these layers through dependency injection and 
 ### Module registry protocol
 - **Status:** ✅ Mostly compliant.
 - Supports versions endpoint and download endpoint with `X-Terraform-Get` redirect semantics.
+- In development/mock mode, redirects now land on a host-side archive proxy instead of non-routable mock storage URLs.
 - Also includes convenience endpoints (`latest`, unversioned download, ingest upload) beyond Terraform CLI minimum.
 
 ### Provider registry protocol
@@ -47,12 +46,14 @@ The Azure implementation composes these layers through dependency injection and 
   - `GET :namespace/:type/:version/download/:os/:arch`
 - Companion checksum and detached-signature endpoints are also available and used to populate:
   - `download_url`, `shasums_url`, `shasums_signature_url`, `shasum`, `signing_keys`
+- Platform-aware provider publication endpoint now exists:
+  - `POST :namespace/:type/:version/upload/:os/:arch`
+  - with `X-Terraform-Protocols`
 - Operational prerequisite:
   - provider signing requires configured OpenPGP private key material, and provider version records must contain `protocols` plus the requested `platforms` entry.
 
 ## Recommended roadmap
 
-1. Add provider package route and handler to return full provider package metadata contract.
-2. Add a first-class provider publication pipeline that persists platform packages and version metadata together.
-3. Keep existing module-style provider download route only if needed for backward compatibility, but do not rely on it for Terraform provider installation.
-4. Add contract tests that execute Terraform CLI against local endpoints for both module and provider install flows.
+1. Add contract tests that execute Terraform CLI against local endpoints for both module and provider install flows.
+2. Decide whether to keep the legacy module-style provider download route for backward compatibility.
+3. Add richer publishing ergonomics beyond the Azure Pipelines helper, such as a CLI or reusable SDK client.

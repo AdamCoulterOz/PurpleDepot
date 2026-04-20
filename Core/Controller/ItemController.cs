@@ -10,6 +10,7 @@ namespace PurpleDepot.Core.Controller;
 public class ItemController<T>
 	where T : RegistryItem<T>
 {
+	private const string ArchiveRouteRoot = "v1/archive";
 	protected readonly IRepository<T> ItemRepo;
 	protected readonly IStorageProvider<T> StorageProvider;
 
@@ -51,17 +52,20 @@ public class ItemController<T>
 	}
 
 	protected async Task<ControllerResult> DownloadAsync(Address<T> itemId,
-		string? versionName = null)
+		string? versionName = null,
+		Uri? requestUri = null)
 	{
 		var (item, version) = await GetItemAsync(itemId, versionName);
 		var fileKey = item.GetFileKey(version);
 
 		var response = ControllerResult.New(HttpStatusCode.NoContent);
-		var downloadUri = StorageProvider.DownloadLink(fileKey);
+		var downloadUri = ResolveDownloadUri(fileKey, requestUri);
 		var builder = new UriBuilder(downloadUri);
 		var query = HttpUtility.ParseQueryString(builder.Query);
 		query.Add("archive", "zip");
 		builder.Query = query.ToString();
+		if (downloadUri.IsDefaultPort)
+			builder.Port = -1;
 		response.AddHeader("X-Terraform-Get", builder.ToString());
 		return response;
 	}
@@ -77,5 +81,14 @@ public class ItemController<T>
 		if (item is null || version is null)
 			throw new NotFoundException<T>(itemId);
 		return (item, version);
+	}
+
+	protected Uri ResolveDownloadUri(string fileKey, Uri? requestUri = null)
+	{
+		var downloadUri = StorageProvider.DownloadLink(fileKey);
+		if (downloadUri.Scheme != MockStorageService<T>.DownloadScheme || requestUri is null)
+			return downloadUri;
+
+		return new Uri($"{requestUri.Scheme}://{requestUri.Authority}/{ArchiveRouteRoot}/{MockStorageService<T>.EncodePath(fileKey)}");
 	}
 }

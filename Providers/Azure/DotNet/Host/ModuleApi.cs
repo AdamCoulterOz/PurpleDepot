@@ -21,14 +21,14 @@ public class ModuleApi : ModuleController
 	public async Task<HttpResponseData> Download(
 		[HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = ModuleRoutes.Download)]
 			HttpRequestData request, string @namespace, string name, string provider)
-				=> await request.CreateResponseAsync(async () => await DownloadAsync(new ModuleAddress(@namespace, name, provider)));
+				=> await request.CreateResponseAsync(async () => await DownloadAsync(new ModuleAddress(@namespace, name, provider), requestUri: request.Url));
 
 	[Function($"{nameof(ModuleApi)}_{nameof(DownloadVersion)}")]
 	public async Task<HttpResponseData> DownloadVersion(
 		[HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = ModuleRoutes.DownloadVersion)]
 			HttpRequestData request,
 		string @namespace, string name, string provider, string version)
-			=> await request.CreateResponseAsync(async () => await DownloadAsync(new ModuleAddress(@namespace, name, provider), version));
+			=> await request.CreateResponseAsync(async () => await DownloadAsync(new ModuleAddress(@namespace, name, provider), version, request.Url));
 
 	[Function($"{nameof(ModuleApi)}_{nameof(Latest)}")]
 	public async Task<HttpResponseData> Latest(

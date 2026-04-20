@@ -41,7 +41,7 @@ public class ProviderControllerTests
 		package.OS.Should().Be(platform.OS);
 		package.Arch.Should().Be(platform.Arch);
 		package.FileName.Should().Be("terraform-provider-widget_1.2.3_linux_amd64.zip");
-		package.DownloadUrl.AbsoluteUri.Should().Be($"https://mock-storage.invalid/{Uri.EscapeDataString(provider.GetPackageFileKey(version, platform))}");
+		package.DownloadUrl.AbsoluteUri.Should().Be($"https://registry.example.test/v1/archive/{MockStorageService<Provider>.EncodePath(provider.GetPackageFileKey(version, platform))}");
 		package.ShaSumsUrl.AbsoluteUri.Should().Be($"{requestUri.AbsoluteUri}/SHA256SUMS");
 		package.ShaSumsSignatureUrl.AbsoluteUri.Should().Be($"{requestUri.AbsoluteUri}/SHA256SUMS.sig");
 		package.ShaSum.Should().Be(expectedSha);
@@ -138,6 +138,78 @@ public class ProviderControllerTests
 		exception.Which.Response.Content.Should().Be($"Provider '{provider.Namespace}/{provider.Name}' version '{version.Version}' is missing required protocol metadata.");
 	}
 
+	[Fact]
+	public async Task IngestPackageAsync_CreatesProviderVersionAndPlatformMetadata()
+	{
+		var controller = CreateEmptyController();
+		var address = NewProviderAddress();
+		var payload = Encoding.UTF8.GetBytes("provider-package");
+
+		var result = await controller.ExposeIngestPackageAsync(
+			address,
+			"1.2.3",
+			"linux",
+			"amd64",
+			["5.0", "6.0"],
+			new MemoryStream(payload));
+
+		result.StatusCode.Should().Be(HttpStatusCode.Created);
+
+		var package = (await controller.ExposeDownloadPackageAsync(
+			address,
+			"1.2.3",
+			"linux",
+			"amd64",
+			new Uri($"https://registry.example.test/v1/providers/{address.Namespace}/{address.Name}/1.2.3/download/linux/amd64"))).Content
+			.Should().BeOfType<ProviderPackage>().Subject;
+
+		package.Protocols.Should().Equal("5.0", "6.0");
+		package.DownloadUrl.AbsoluteUri.Should().Be($"https://registry.example.test/v1/archive/{MockStorageService<Provider>.EncodePath($"providers/{address.Namespace}/{address.Name}/1.2.3/linux/amd64/terraform-provider-widget_1.2.3_linux_amd64.zip")}");
+	}
+
+	[Fact]
+	public async Task IngestPackageAsync_RejectsMissingProtocols()
+	{
+		var controller = CreateEmptyController();
+		var address = NewProviderAddress();
+
+		var act = () => controller.ExposeIngestPackageAsync(
+			address,
+			"1.2.3",
+			"linux",
+			"amd64",
+			Array.Empty<string>(),
+			new MemoryStream([1, 2, 3]));
+
+		var exception = await act.Should().ThrowAsync<ControllerResultException>();
+		exception.Which.Response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+	}
+
+	[Fact]
+	public async Task IngestPackageAsync_RejectsDuplicatePlatformUploads()
+	{
+		var controller = CreateEmptyController();
+		var address = NewProviderAddress();
+		await controller.ExposeIngestPackageAsync(
+			address,
+			"1.2.3",
+			"linux",
+			"amd64",
+			["5.0"],
+			new MemoryStream([1, 2, 3]));
+
+		var act = () => controller.ExposeIngestPackageAsync(
+			address,
+			"1.2.3",
+			"linux",
+			"amd64",
+			["5.0"],
+			new MemoryStream([4, 5, 6]));
+
+		var exception = await act.Should().ThrowAsync<ControllerResultException>();
+		exception.Which.Response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+	}
+
 	private static async Task<(TestProviderController Controller, Provider Provider, ProviderVersion Version, ProviderPlatform Platform)> CreateControllerAsync(
 		FakeProviderPackageSigner signer)
 	{
@@ -169,8 +241,20 @@ public class ProviderControllerTests
 		return new TestProviderController(repository, storage, signer);
 	}
 
+	private static TestProviderController CreateEmptyController()
+	{
+		var options = new DbContextOptionsBuilder<AppContext>()
+			.UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+			.Options;
+		var repository = new Repository<Provider>(new AppContext(options));
+		return new TestProviderController(repository, new MockStorageService<Provider>(), new FakeProviderPackageSigner());
+	}
+
 	private static string GetSha256(byte[] bytes)
 		=> Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+
+	private static ProviderAddress NewProviderAddress()
+		=> new($"acme-{Guid.NewGuid():N}", "widget");
 
 	private sealed class TestProviderController : ProviderController
 	{
@@ -188,6 +272,9 @@ public class ProviderControllerTests
 
 		public Task<ControllerResult> ExposeGetChecksumsSignatureAsync(Address<Provider> address, string version, string os, string arch, Uri requestUri)
 			=> base.GetChecksumsSignatureAsync(address, version, os, arch, requestUri);
+
+		public Task<ControllerResult> ExposeIngestPackageAsync(Address<Provider> address, string version, string os, string arch, IEnumerable<string> protocols, Stream stream)
+			=> base.IngestPackageAsync(address, version, os, arch, protocols, stream);
 	}
 
 	private sealed class FakeProviderPackageSigner : IProviderPackageSigner

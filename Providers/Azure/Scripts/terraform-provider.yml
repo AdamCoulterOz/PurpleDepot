@@ -1,0 +1,68 @@
+parameters:
+  - name: TFRegistryURL
+    type: string
+
+  - name: PackagePath
+    type: string
+
+  - name: Namespace
+    type: string
+
+  - name: Name
+    type: string
+
+  - name: Version
+    type: string
+
+  - name: OS
+    type: string
+
+  - name: Arch
+    type: string
+
+  - name: Protocols
+    type: string
+
+  - name: AzConnection
+    type: string
+
+steps:
+  - task: UpdateBuildNumber@0
+    inputs:
+      buildNumber: ${{ parameters.Version }}
+
+  - task: AzureCLI@2
+    displayName: "Publish Provider Package to Registry"
+    env:
+      namespace: ${{ parameters.Namespace }}
+      name: ${{ parameters.Name }}
+      version: ${{ parameters.Version }}
+      os: ${{ parameters.OS }}
+      arch: ${{ parameters.Arch }}
+      protocols: ${{ parameters.Protocols }}
+      packagePath: ${{ parameters.PackagePath }}
+    inputs:
+      azureSubscription: ${{ parameters.AzConnection }}
+      scriptType: pscore
+      scriptLocation: inlineScript
+      addSpnToEnvironment: true
+      inlineScript: |
+        $authUrl = "https://login.microsoftonline.com/$($env:tenantId)/oauth2/token"
+        $form = @{
+          grant_type    = 'client_credentials'
+          client_id     = $env:servicePrincipalId
+          client_secret = $env:servicePrincipalKey
+          resource      = '${{ parameters.TFRegistryURL }}'
+        }
+
+        $authResult = Invoke-RestMethod -Uri $authUrl -Method Post -Form $form
+        $providerUrl = "${{ parameters.TFRegistryURL }}/v1/providers/$($env:namespace)/$($env:name)/$($env:version)/upload/$($env:os)/$($env:arch)"
+        $secureToken = ConvertTo-SecureString $authResult.access_token -AsPlainText -Force
+
+        Invoke-RestMethod `
+          -Uri $providerUrl `
+          -Method Post `
+          -InFile $env:packagePath `
+          -Authentication Bearer `
+          -Token $secureToken `
+          -Headers @{ "X-Terraform-Protocols" = $env:protocols }

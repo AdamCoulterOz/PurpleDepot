@@ -1,3 +1,4 @@
+using System.Net;
 using PurpleDepot.Core.Controller;
 using PurpleDepot.Core.Controller.Data;
 using PurpleDepot.Core.Interface.Model.Provider;
@@ -22,13 +23,13 @@ public class ProviderApi : ProviderController
 	public async Task<HttpResponseData> Download(
 		[HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = ProviderRoutes.Download)]
 			HttpRequestData request, string @namespace, string name)
-				=> await request.CreateResponseAsync(async () => await DownloadAsync(new ProviderAddress(@namespace, name)));
+				=> await request.CreateResponseAsync(async () => await DownloadAsync(new ProviderAddress(@namespace, name), requestUri: request.Url));
 
 	[Function($"{nameof(ProviderApi)}_{nameof(DownloadVersion)}")]
 	public async Task<HttpResponseData> DownloadVersion(
 		[HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = ProviderRoutes.DownloadVersion)]
 			HttpRequestData request, string @namespace, string name, string version)
-			=> await request.CreateResponseAsync(async () => await DownloadAsync(new ProviderAddress(@namespace, name), version));
+			=> await request.CreateResponseAsync(async () => await DownloadAsync(new ProviderAddress(@namespace, name), version, request.Url));
 
 	[Function($"{nameof(ProviderApi)}_{nameof(DownloadPlatform)}")]
 	public async Task<HttpResponseData> DownloadPlatform(
@@ -70,5 +71,22 @@ public class ProviderApi : ProviderController
 		[HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = ProviderRoutes.Ingest)]
 			HttpRequestData request,
 		string @namespace, string name, string version)
-			=> await request.CreateResponseAsync(async () => await IngestAsync(new ProviderAddress(@namespace, name), version, request.Body));
+			=> await request.CreateResponseAsync(async () => ControllerResult.New(HttpStatusCode.BadRequest, "Provider uploads must target /v1/providers/{namespace}/{name}/{version}/upload/{os}/{arch} and include the X-Terraform-Protocols header."));
+
+	[Function($"{nameof(ProviderApi)}_{nameof(IngestPlatform)}")]
+	public async Task<HttpResponseData> IngestPlatform(
+		[HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = ProviderRoutes.IngestPlatform)]
+			HttpRequestData request,
+		string @namespace,
+		string name,
+		string version,
+		string os,
+		string arch)
+	{
+		var protocols = request.Headers.TryGetValues("X-Terraform-Protocols", out var values)
+			? values.SelectMany(value => value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+			: Array.Empty<string>();
+
+		return await request.CreateResponseAsync(async () => await IngestPackageAsync(new ProviderAddress(@namespace, name), version, os, arch, protocols, request.Body));
+	}
 }

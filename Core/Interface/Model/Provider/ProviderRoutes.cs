@@ -20,4 +20,5 @@ public class ProviderRoutes : IRoutes
 	public const string Latest = $"{Common}";
 	public const string Version = $"{CommonVersion}";
 	public const string Ingest = $"{CommonVersion}/upload";
+	public const string IngestPlatform = $"{CommonVersion}/upload/{{os}}/{{arch}}";
 }

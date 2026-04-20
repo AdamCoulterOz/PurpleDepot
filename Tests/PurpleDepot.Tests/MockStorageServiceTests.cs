@@ -19,7 +19,7 @@ public class MockStorageServiceTests
 		var downloadUri = storage.DownloadLink(fileKey);
 		var (stream, contentLength) = await storage.DownloadZipAsync(fileKey);
 
-		downloadUri.AbsoluteUri.Should().Be($"https://mock-storage.invalid/{Uri.EscapeDataString(fileKey)}");
+		downloadUri.AbsoluteUri.Should().Be($"mock://storage/{MockStorageService<Module>.EncodePath(fileKey)}");
 		contentLength.Should().Be(bytes.Length);
 		stream.Should().NotBeNull();
 
