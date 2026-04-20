@@ -10,20 +10,20 @@ namespace PurpleDepot.Core.Controller;
 public class ItemController<T>
 	where T : RegistryItem<T>
 {
-	private readonly IRepository<T> _itemRepo;
-	private readonly IStorageProvider<T> _storageProvider;
+	protected readonly IRepository<T> ItemRepo;
+	protected readonly IStorageProvider<T> StorageProvider;
 
 	protected ItemController(IRepository<T> itemRepo, IStorageProvider<T> storageProvider)
 	{
-		_itemRepo = itemRepo;
-		_itemRepo.EnsureCreated();
-		_storageProvider = storageProvider;
+		ItemRepo = itemRepo;
+		ItemRepo.EnsureCreated();
+		StorageProvider = storageProvider;
 	}
 
 	protected async Task<ControllerResult> IngestAsync(Address<T> newAddress,
 		string version, Stream stream)
 	{
-		var item = await _itemRepo.GetItemAsync(newAddress);
+		var item = await ItemRepo.GetItemAsync(newAddress);
 
 		if (item is not null && item.HasVersion(version))
 			throw new AlreadyExistsException<T>(newAddress);
@@ -31,7 +31,7 @@ public class ItemController<T>
 		if (item is null)
 		{
 			item = newAddress.NewItem(version);
-			_itemRepo.Add(item);
+			ItemRepo.Add(item);
 		}
 		else
 			item.AddVersion(version);
@@ -39,14 +39,14 @@ public class ItemController<T>
 		var newVersion = item.GetVersion(version)!;
 		try
 		{
-			await _storageProvider.UploadZipAsync(item.GetFileKey(newVersion), stream);
+			await StorageProvider.UploadZipAsync(item.GetFileKey(newVersion), stream);
 		}
 		catch (Exception e)
 		{
 			throw new ControllerResultException(HttpStatusCode.InternalServerError, $"Uploading file failed, and the module was not saved. Inner error: {e.Message}");
 		}
 
-		_itemRepo.SaveChanges();
+		ItemRepo.SaveChanges();
 		return ControllerResult.New(HttpStatusCode.Created);
 	}
 
@@ -57,7 +57,7 @@ public class ItemController<T>
 		var fileKey = item.GetFileKey(version);
 
 		var response = ControllerResult.New(HttpStatusCode.NoContent);
-		var downloadUri = _storageProvider.DownloadLink(fileKey);
+		var downloadUri = StorageProvider.DownloadLink(fileKey);
 		var builder = new UriBuilder(downloadUri);
 		var query = HttpUtility.ParseQueryString(builder.Query);
 		query.Add("archive", "zip");
@@ -72,7 +72,7 @@ public class ItemController<T>
 	protected async Task<(T item, RegistryItemVersion version)> GetItemAsync(
 		Address<T> itemId, string? versionName = null)
 	{
-		var item = await _itemRepo.GetItemAsync(itemId);
+		var item = await ItemRepo.GetItemAsync(itemId);
 		var version = item?.GetVersion(versionName);
 		if (item is null || version is null)
 			throw new NotFoundException<T>(itemId);

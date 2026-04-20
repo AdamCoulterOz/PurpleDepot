@@ -15,6 +15,7 @@ public static class ResponseWrapper
 		{
 			null => Task.CompletedTask,
 			string content => response.WriteStringAsync(content),
+			byte[] content => response.Body.WriteAsync(content).AsTask(),
 			not null => response.WriteAsJsonAsync(result.Content).AsTask(),
 		};
 		await writeTask;

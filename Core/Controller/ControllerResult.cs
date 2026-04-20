@@ -31,6 +31,13 @@ public class ControllerResult
 	public static ControllerResult New(HttpStatusCode statusCode, string message)
 		=> new ControllerResult(statusCode, message);
 
+	public static ControllerResult NewBinary(byte[] content, string contentType)
+	{
+		var result = new ControllerResult(HttpStatusCode.OK, content);
+		result.AddHeader("Content-Type", contentType);
+		return result;
+	}
+
 	public static ControllerResult NewJson(object content)
 		=> new ControllerResult(HttpStatusCode.OK, content);
 }

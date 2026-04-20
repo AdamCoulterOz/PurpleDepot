@@ -14,6 +14,9 @@ public class ProviderRoutes : IRoutes
 	public const string Versions = $"{Common}/versions";
 	public const string Download = $"{Common}/download";
 	public const string DownloadVersion = $"{CommonVersion}/download";
+	public const string DownloadPlatform = $"{CommonVersion}/download/{{os}}/{{arch}}";
+	public const string Checksums = $"{DownloadPlatform}/SHA256SUMS";
+	public const string ChecksumsSignature = $"{DownloadPlatform}/SHA256SUMS.sig";
 	public const string Latest = $"{Common}";
 	public const string Version = $"{CommonVersion}";
 	public const string Ingest = $"{CommonVersion}/upload";

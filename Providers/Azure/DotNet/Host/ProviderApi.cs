@@ -9,7 +9,8 @@ namespace PurpleDepot.Providers.Azure.Host;
 
 public class ProviderApi : ProviderController
 {
-	public ProviderApi(IRepository<Provider> repo, IStorageProvider<Provider> storageProvider) : base(repo, storageProvider) { }
+	public ProviderApi(IRepository<Provider> repo, IStorageProvider<Provider> storageProvider, IProviderPackageSigner packageSigner)
+		: base(repo, storageProvider, packageSigner) { }
 
 	[Function($"{nameof(ProviderApi)}_{nameof(Versions)}")]
 	public async Task<HttpResponseData> Versions(
@@ -28,6 +29,24 @@ public class ProviderApi : ProviderController
 		[HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = ProviderRoutes.DownloadVersion)]
 			HttpRequestData request, string @namespace, string name, string version)
 			=> await request.CreateResponseAsync(async () => await DownloadAsync(new ProviderAddress(@namespace, name), version));
+
+	[Function($"{nameof(ProviderApi)}_{nameof(DownloadPlatform)}")]
+	public async Task<HttpResponseData> DownloadPlatform(
+		[HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = ProviderRoutes.DownloadPlatform)]
+			HttpRequestData request, string @namespace, string name, string version, string os, string arch)
+			=> await request.CreateResponseAsync(async () => await DownloadPackageAsync(new ProviderAddress(@namespace, name), version, os, arch, request.Url));
+
+	[Function($"{nameof(ProviderApi)}_{nameof(Checksums)}")]
+	public async Task<HttpResponseData> Checksums(
+		[HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = ProviderRoutes.Checksums)]
+			HttpRequestData request, string @namespace, string name, string version, string os, string arch)
+			=> await request.CreateResponseAsync(async () => await GetChecksumsAsync(new ProviderAddress(@namespace, name), version, os, arch, request.Url));
+
+	[Function($"{nameof(ProviderApi)}_{nameof(ChecksumsSignature)}")]
+	public async Task<HttpResponseData> ChecksumsSignature(
+		[HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = ProviderRoutes.ChecksumsSignature)]
+			HttpRequestData request, string @namespace, string name, string version, string os, string arch)
+			=> await request.CreateResponseAsync(async () => await GetChecksumsSignatureAsync(new ProviderAddress(@namespace, name), version, os, arch, request.Url));
 
 	[Function($"{nameof(ProviderApi)}_{nameof(Latest)}")]
 	public async Task<HttpResponseData> Latest(

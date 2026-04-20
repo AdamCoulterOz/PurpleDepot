@@ -1,6 +1,7 @@
 using PurpleDepot.Providers.Azure.Options;
 using PurpleDepot.Providers.Azure.Storage;
 using PurpleDepot.Core.Controller.Data;
+using PurpleDepot.Core.Controller;
 using PurpleDepot.Core.Interface.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -27,6 +28,14 @@ public static class Program
 	{
 		var config = context.Configuration.GetSection(OptionsRoot).Get<AzureOptions>()
 			?? throw new InvalidOperationException($"Missing required configuration section '{OptionsRoot}'.");
+
+		services.AddOptions<ProviderSigningOptions>()
+			.Configure(options =>
+			{
+				options.PrivateKey = config.ProviderSigning.PrivateKey;
+				options.Passphrase = config.ProviderSigning.Passphrase;
+			});
+		services.AddSingleton<IProviderPackageSigner, OpenPgpProviderPackageSigner>();
 
 		if (config.Development)
 		{

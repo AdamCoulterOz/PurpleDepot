@@ -1,4 +1,4 @@
-# Architecture Review (April 11, 2026)
+# Architecture Review (April 20, 2026)
 
 ## High-level assessment
 
@@ -23,14 +23,12 @@ The Azure implementation composes these layers through dependency injection and 
 
 ## Architecture risks / improvement opportunities
 
-1. **Protocol boundary mismatch for providers**
-   - Provider routes currently mirror module-style `download` behavior (204 + `X-Terraform-Get`), but Terraform provider registry protocol requires package metadata JSON at `:namespace/:type/:version/download/:os/:arch`.
-2. **Unimplemented provider package model path**
-   - `ProviderPackage.NewFromProvider(...)` is not implemented.
-3. **Error handling scope**
+1. **Provider publication workflow remains thin**
+   - Provider installation endpoints are now implemented, but the publication side still lacks a first-class platform/package publishing workflow.
+2. **Error handling scope**
    - Response wrapper maps `ControllerResultException` but not unexpected exceptions; runtime failures may leak as generic 500s.
-4. **In-memory storage download URL**
-   - `MockStorageService.DownloadLink` is not implemented, limiting local end-to-end download testing.
+3. **Mock download routing**
+   - `MockStorageService.DownloadLink` now exists, but it still points at a non-routable mock host rather than a dev-hosted download endpoint.
 
 ## Terraform registry protocol contract evaluation
 
@@ -44,15 +42,17 @@ The Azure implementation composes these layers through dependency injection and 
 - Also includes convenience endpoints (`latest`, unversioned download, ingest upload) beyond Terraform CLI minimum.
 
 ### Provider registry protocol
-- **Status:** ❌ Not compliant yet.
-- Missing required provider package endpoint:
+- **Status:** ✅ Implemented at the controller and Azure host layers, with one operational prerequisite.
+- The required package metadata endpoint now exists:
   - `GET :namespace/:type/:version/download/:os/:arch`
-- Current provider download endpoint returns module-style redirect header rather than required package metadata object including:
-  - `protocols`, `os`, `arch`, `filename`, `download_url`, `shasums_url`, `shasums_signature_url`, `shasum`, `signing_keys`.
+- Companion checksum and detached-signature endpoints are also available and used to populate:
+  - `download_url`, `shasums_url`, `shasums_signature_url`, `shasum`, `signing_keys`
+- Operational prerequisite:
+  - provider signing requires configured OpenPGP private key material, and provider version records must contain `protocols` plus the requested `platforms` entry.
 
 ## Recommended roadmap
 
 1. Add provider package route and handler to return full provider package metadata contract.
-2. Implement checksum/signing-key metadata pipeline and populate `ProviderPackage`.
+2. Add a first-class provider publication pipeline that persists platform packages and version metadata together.
 3. Keep existing module-style provider download route only if needed for backward compatibility, but do not rely on it for Terraform provider installation.
 4. Add contract tests that execute Terraform CLI against local endpoints for both module and provider install flows.

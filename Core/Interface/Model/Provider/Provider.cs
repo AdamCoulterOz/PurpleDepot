@@ -29,6 +29,9 @@ public class Provider : RegistryItem<Provider>
 	public static Provider New(ProviderAddress id, string version)
 		=> new Provider(id, version);
 
+	public string GetPackageFileKey(ProviderVersion version, ProviderPlatform platform)
+		=> $"{GetTypeName()}/{Address}/{version.Version}/{platform.OS}/{platform.Arch}/{ProviderPackage.GetFileName(Name, version, platform)}";
+
 	protected override ProviderVersion AddSpecificVersion(RegistryItemVersion version)
 	{
 		if (version is ProviderVersion providerVersion)

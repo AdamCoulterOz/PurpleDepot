@@ -2,5 +2,8 @@
   <Folder Name="/Providers/">
     <Project Path="Providers/Azure/DotNet/PurpleDepot.Azure.csproj" />
   </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/PurpleDepot.Tests/PurpleDepot.Tests.csproj" />
+  </Folder>
   <Project Path="Core/Core.csproj" />
 </Solution>
